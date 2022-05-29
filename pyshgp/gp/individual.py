@@ -32,7 +32,8 @@ class Individual(Saveable, Copyable):
 
     __slots__ = [
         "id", "genome", "signature",
-        "_program", "_error_vector", "_total_error", "_error_vector_bytes"
+        "_program", "_error_vector", "_total_error", "_error_vector_bytes",
+        "info"
     ]
 
     def __init__(self, genome: Genome, signature: ProgramSignature):
@@ -43,6 +44,7 @@ class Individual(Saveable, Copyable):
         self._error_vector = None
         self._total_error = None
         self._error_vector_bytes = None
+        self.info = None
 
     @property
     def program(self) -> Program:

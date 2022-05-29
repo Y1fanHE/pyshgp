@@ -71,6 +71,9 @@ class PushEstimator:
                  variation_strategy: Union[vr.VariationStrategy, dict, str] = "umad",
                  population_size: int = 300,
                  max_generations: int = 100,
+                 error_threshold: float = 0.0,
+                 penalty: float = 1e+06,
+                 max_genome_size: int = None,
                  initial_genome_size: Tuple[int, int] = (20, 100),
                  simplification_steps: int = 2000,
                  last_str_from_stdout: bool = False,
@@ -85,6 +88,9 @@ class PushEstimator:
         self.variation_strategy = variation_strategy
         self.population_size = population_size
         self.max_generations = max_generations
+        self.error_threshold = error_threshold
+        self.penalty = penalty
+        self.max_genome_size = max_genome_size
         self.initial_genome_size = initial_genome_size
         self.simplification_steps = simplification_steps
         self.last_str_from_stdout = last_str_from_stdout
@@ -125,6 +131,8 @@ class PushEstimator:
             variation=self.variation_strategy,
             population_size=self.population_size,
             max_generations=self.max_generations,
+            error_threshold=self.error_threshold,
+            max_genome_size=self.max_genome_size,
             initial_genome_size=self.initial_genome_size,
             simplification_steps=self.simplification_steps,
             parallelism=self.parallelism,
@@ -153,7 +161,7 @@ class PushEstimator:
             if ndx is not None:
                 output_types[ndx] = "stdout"
         self.signature = ProgramSignature(arity=arity, output_stacks=output_types, push_config=self.push_config)
-        self.evaluator = DatasetEvaluator(X, y, interpreter=self.interpreter)
+        self.evaluator = DatasetEvaluator(X, y, interpreter=self.interpreter, penalty=self.penalty)
         self._build_search_algo()
         self.solution = self.search.run()
         self.search.config.tear_down()

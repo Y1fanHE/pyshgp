@@ -11,11 +11,11 @@ from pyshgp.push.program import ProgramSignature
 from pyshgp.tap import tap
 from pyshgp.utils import DiscreteProbDistrib
 from pyshgp.gp.evaluation import Evaluator
-from pyshgp.gp.genome import GeneSpawner, GenomeSimplifier
+from pyshgp.gp.genome import GeneSpawner, GenomeArchive, GenomeSimplifier
 from pyshgp.gp.individual import Individual
 from pyshgp.gp.population import Population
 from pyshgp.gp.selection import Selector, get_selector
-from pyshgp.gp.variation import VariationOperator, get_variation_operator
+from pyshgp.gp.variation import ReplacementMutation, VariationOperator, get_variation_operator
 from pyshgp.utils import instantiate_using
 
 
@@ -94,6 +94,7 @@ class SearchConfiguration:
                  population_size: int = 500,
                  max_generations: int = 100,
                  error_threshold: float = 0.0,
+                 max_genome_size: int = None,
                  initial_genome_size: Tuple[int, int] = (10, 50),
                  simplification_steps: int = 2000,
                  parallelism: Union[int, bool] = True,
@@ -104,6 +105,7 @@ class SearchConfiguration:
         self.population_size = population_size
         self.max_generations = max_generations
         self.error_threshold = error_threshold
+        self.max_genome_size = max_genome_size
         self.initial_genome_size = initial_genome_size
         self.simplification_steps = simplification_steps
         self.ext = kwargs
@@ -265,7 +267,7 @@ class GeneticAlgorithm(SearchAlgorithm):
         op = self.config.get_variation_op()
         selector = self.config.get_selector()
         parent_genomes = [p.genome for p in selector.select(self.population, n=op.num_parents)]
-        child_genome = op.produce(parent_genomes, self.config.spawner)
+        child_genome = op.produce(parent_genomes, self.config.spawner, max_genome_size=self.config.max_genome_size)
         return Individual(child_genome, self.config.signature)
 
     @tap
@@ -277,6 +279,68 @@ class GeneticAlgorithm(SearchAlgorithm):
 
         """
         super().step()
+        self.population = Population(
+            [self._make_child() for _ in range(self.config.population_size)]
+        )
+
+
+class ReplacementGeneticAlgorithm(SearchAlgorithm):
+    """Genetic algorithm with Adaptive replacement mutation to synthesize Push programs.
+
+    An initial Population of random Individuals is created. Each generation
+    begins by evaluating all Individuals in the population. Then the current
+    Population is replaced with children produced by selecting parents from
+    the Population and applying VariationOperators to them. Additionally, some
+    part of the parents is replaced by ReplacementMutation at a probability,
+    with the Genomes from a GenomeArchive.
+
+    """
+
+    def __init__(self,
+                 config: SearchConfiguration,
+                 archive: GenomeArchive,
+                 replacement_rate: float = 0.1,
+                 adaptation_rate: float = 0.5):
+        super().__init__(config)
+        self.rp = ReplacementMutation()
+        self.archive = archive
+        self.replacement_rate = replacement_rate
+        self.adaptation_rate = adaptation_rate
+
+    def _make_child(self) -> Individual:
+        op = self.config.get_variation_op()
+        selector = self.config.get_selector()
+        parent_individuals = selector.select(self.population, n=op.num_parents)
+        parent_genomes = [p.genome for p in parent_individuals]
+
+        if np.random.random() < self.replacement_rate: # replacement mutation
+            if np.random.random() < self.adaptation_rate: # select subprogram adaptively
+                wrapped_genome = self.archive.adaptive_genome()
+            else: # select subprogram randomly
+                wrapped_genome = self.archive.random_genome()
+            child_genome = self.rp.produce(parent_genomes, self.config.spawner,
+                                           replacement_genome=wrapped_genome.genome,
+                                           max_genome_size=self.config.max_genome_size)
+            individual = Individual(child_genome, self.config.signature)
+            individual.info = {"rid": wrapped_genome.id, "pfit": parent_individuals[0].error_vector}
+        else: # umad
+            child_genome = op.produce(parent_genomes, self.config.spawner, max_genome_size=self.config.max_genome_size)
+            individual = Individual(child_genome, self.config.signature)
+        return individual
+
+    @tap
+    def step(self):
+        super().step()
+
+        if self.generation > 1:
+            for individual in self.population:
+                if individual.info:
+                    rid = individual.info.get("rid")
+                    pfit = individual.info.get("pfit")
+                    ifit = individual.error_vector
+                    if np.count_nonzero(pfit) > np.count_nonzero(ifit): # less unsolved case
+                        self.archive.scores[rid] += 1
+
         self.population = Population(
             [self._make_child() for _ in range(self.config.population_size)]
         )
@@ -351,6 +415,7 @@ def get_search_algo(name: str, **kwargs) -> SearchAlgorithm:
     name_to_cls = {
         "GA": GeneticAlgorithm,
         "SA": SimulatedAnnealing,
+        "RGA": ReplacementGeneticAlgorithm,
         # "ES": EvolutionaryStrategy,
     }
     _cls = name_to_cls.get(name, None)

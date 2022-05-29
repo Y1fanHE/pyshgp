@@ -352,3 +352,37 @@ class GenomeSimplifier:
             if len(gn) == 1:
                 break
         return gn, errs
+
+
+class GenomeWrapped:
+
+    def __init__(self, genome: Genome, id: int):
+        self.genome = genome
+        self.id = id
+
+
+class GenomeArchive:
+
+    def __init__(self,
+                 genomes: Sequence[Genome]):
+        self.wrapped_genomes = []
+        for i, genome in enumerate(genomes):
+            self.wrapped_genomes.append(GenomeWrapped(genome, i))
+        self.size = len(genomes)
+        self.scores = np.zeros(self.size)
+
+    def random_genome(self) -> GenomeWrapped:
+        i = np.random.choice(self.size)
+        return self.wrapped_genomes[i]
+
+    def adaptive_genome(self) -> GenomeWrapped:
+        i = np.random.choice(self.size, p=self.probability)
+        return self.wrapped_genomes[i]
+
+    @property
+    def probability(self) -> np.array:
+        s = self.scores.sum()
+        if s != 0:
+            return self.scores / s
+        else:
+            return np.full(self.size, 1/self.size)
