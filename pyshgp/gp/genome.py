@@ -23,7 +23,8 @@ from pyshgp.gp.evaluation import Evaluator
 from pyshgp.push.instruction_set import InstructionSet
 from pyshgp.push.program import ProgramSignature, Program
 from pyshgp.push.atoms import Atom, CodeBlock, Closer, Literal, InstructionMeta, Input
-from pyshgp.push.type_library import infer_literal
+from pyshgp.push.atoms import  vCloser, vInstructionMeta, vInput
+from pyshgp.push.type_library import PushTypeLibrary, infer_literal, infer_vliteral
 from pyshgp.tap import tap
 from pyshgp.utils import DiscreteProbDistrib
 
@@ -354,30 +355,50 @@ class GenomeSimplifier:
         return gn, errs
 
 
-class GenomeWrapped:
-
-    def __init__(self, genome: Genome, id: int):
-        self.genome = genome
-        self.id = id
-
-
 class GenomeArchive:
 
-    def __init__(self,
-                 genomes: Sequence[Genome]):
-        self.wrapped_genomes = []
-        for i, genome in enumerate(genomes):
-            self.wrapped_genomes.append(GenomeWrapped(genome, i))
+    def __init__(self, genomes: Sequence[Genome]):
+        self.genomes = genomes
         self.size = len(genomes)
         self.scores = np.zeros(self.size)
 
-    def random_genome(self) -> GenomeWrapped:
+    def random_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
         i = np.random.choice(self.size)
-        return self.wrapped_genomes[i]
+        genome = self.genomes[i]
+        return self.to_vgenome(genome, i, time, type_library)
 
-    def adaptive_genome(self) -> GenomeWrapped:
+    def adaptive_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
         i = np.random.choice(self.size, p=self.probability)
-        return self.wrapped_genomes[i]
+        genome = self.genomes[i]
+        return self.to_vgenome(genome, i, time, type_library)
+
+    def to_vgenome(self, genome: Genome, source: int, time: int, spawner: GeneSpawner) -> Genome:
+        vgenome = Genome()
+        for atom in genome:
+            if isinstance(atom, Closer):
+                vatom = vCloser(source=source, time=time)
+            elif isinstance(atom, Input):
+                vatom = vInput(
+                    input_index=np.random.randint(0, spawner.n_inputs),
+                    source=source,
+                    time=time
+                )
+            elif isinstance(atom, InstructionMeta):
+                vatom = vInstructionMeta(
+                    name=atom.name,
+                    code_blocks=atom.code_blocks,
+                    source=source,
+                    time=time
+                )
+            elif isinstance(atom, Literal):
+                vatom = infer_vliteral(
+                    val=atom.value,
+                    source=source,
+                    time=time,
+                    type_library=spawner.type_library
+                )
+            vgenome = vgenome.append(vatom)
+        return vgenome
 
     @property
     def probability(self) -> np.array:

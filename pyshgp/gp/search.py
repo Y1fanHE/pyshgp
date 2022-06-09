@@ -4,6 +4,7 @@ from typing import Union, Tuple, Optional
 
 import numpy as np
 import math
+import pickle as pc
 from functools import partial
 from multiprocessing import Pool, Manager
 
@@ -214,6 +215,10 @@ class SearchAlgorithm(ABC):
         else:
             self.population.evaluate(self.config.evaluator)
 
+        if self.config.ext.get("savepop"):
+            with open(self.config.ext.get("savepop"), "ab") as savepop:
+                pc.dump(self.population, savepop)
+
         best_this_gen = self.population.best()
         if self.best_seen is None or best_this_gen.total_error < self.best_seen.total_error:
             self.best_seen = best_this_gen
@@ -315,14 +320,14 @@ class ReplacementGeneticAlgorithm(SearchAlgorithm):
 
         if np.random.random() < self.replacement_rate: # replacement mutation
             if np.random.random() < self.adaptation_rate: # select subprogram adaptively
-                wrapped_genome = self.archive.adaptive_genome()
+                vgenome = self.archive.adaptive_genome(time=self.generation, type_library=self.config.spawner)
             else: # select subprogram randomly
-                wrapped_genome = self.archive.random_genome()
+                vgenome = self.archive.random_genome(time=self.generation, type_library=self.config.spawner)
             child_genome = self.rp.produce(parent_genomes, self.config.spawner,
-                                           replacement_genome=wrapped_genome.genome,
+                                           replacement_genome=vgenome,
                                            max_genome_size=self.config.max_genome_size)
             individual = Individual(child_genome, self.config.signature)
-            individual.info = {"rid": wrapped_genome.id, "pfit": parent_individuals[0].error_vector}
+            individual.info = {"rid": vgenome[0].source, "pfit": parent_individuals[0].error_vector}
         else: # umad
             child_genome = op.produce(parent_genomes, self.config.spawner, max_genome_size=self.config.max_genome_size)
             individual = Individual(child_genome, self.config.signature)
