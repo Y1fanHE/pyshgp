@@ -174,3 +174,23 @@ class CodeBlock(Atom, CheckedPVector):
     def pretty_str(self) -> str:
         """Generate a simple string representation of the CodeBlock."""
         return "(" + " ".join([el.pretty_str() for el in self]) + ")"
+
+
+class vCloser(Closer):
+    source = field(type=int, mandatory=False)
+    time = field(type=int, mandatory=False)
+
+
+class vInput(Input):
+    source = field(type=int, mandatory=False)
+    time = field(type=int, mandatory=False)
+
+
+class vInstructionMeta(InstructionMeta):
+    source = field(type=int, mandatory=False)
+    time = field(type=int, mandatory=False)
+
+
+class vLiteral(Literal):
+    source = field(type=int, mandatory=False)
+    time = field(type=int, mandatory=False)

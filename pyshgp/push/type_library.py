@@ -2,7 +2,7 @@
 from typing import Any, Sequence, Tuple, Optional, Set, Callable
 
 from pyshgp.push.types import PushType, CORE_PUSH_TYPES
-from pyshgp.push.atoms import Atom, Literal
+from pyshgp.push.atoms import Atom, Literal, vLiteral
 from pyshgp.validation import PushError
 
 
@@ -219,3 +219,7 @@ def infer_literal(val: Any, type_library: PushTypeLibrary) -> Literal:
 
     """
     return Literal(value=val, push_type=type_library.push_type_of(val, error_on_not_found=True))
+
+
+def infer_vliteral(val: Any, source: int, time: int, type_library: PushTypeLibrary) -> vLiteral:
+    return vLiteral(value=val, source=source, time=time, push_type=type_library.push_type_of(val, error_on_not_found=True))
