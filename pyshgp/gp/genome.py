@@ -362,6 +362,12 @@ class GenomeArchive:
         self.size = len(genomes)
         self.scores = np.zeros(self.size)
 
+    def extend(self, archive: Union[Sequence[Genome], GenomeArchive]) -> GenomeArchive:
+        if isinstance(archive, GenomeArchive):
+            self.genomes.extend(archive.genomes)
+        else:
+            self.genomes.extend(archive)
+
     def random_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
         i = np.random.choice(self.size)
         genome = self.genomes[i]
