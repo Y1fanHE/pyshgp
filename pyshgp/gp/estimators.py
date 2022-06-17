@@ -204,7 +204,8 @@ class PushEstimator:
         check_is_fitted(self, "solution")
         X, y, arity, y_types = check_X_y(X, y)
         self.evaluator = DatasetEvaluator(X, y, interpreter=self.interpreter)
-        return self.evaluator.evaluate(self.solution.program)
+        self.test_error = self.evaluator.evaluate(self.solution.program)
+        return self.test_error
 
     def save(self, filepath: str):
         """Load the found solution to a JSON file.
