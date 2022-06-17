@@ -219,6 +219,10 @@ class SearchAlgorithm(ABC):
             with open(self.config.ext.get("savepop"), "ab") as savepop:
                 pc.dump(self.population, savepop)
 
+        if self.config.ext.get("savebest"):
+            with open(self.config.ext.get("savebest"), "ab") as savebest:
+                pc.dump(self.population.best(), savebest)
+
         best_this_gen = self.population.best()
         if self.best_seen is None or best_this_gen.total_error < self.best_seen.total_error:
             self.best_seen = best_this_gen
@@ -345,6 +349,11 @@ class ReplacementGeneticAlgorithm(SearchAlgorithm):
                     ifit = individual.error_vector
                     if np.count_nonzero(pfit) > np.count_nonzero(ifit): # less unsolved case
                         self.archive.scores[rid] += 1
+
+        if self.config.ext.get("replacement_generation"):
+            if self.generation > self.config.ext.get("replacement_generation"):
+                self.replacement_rate = 0.
+                self.adaptation_rate = 0.
 
         self.population = Population(
             [self._make_child() for _ in range(self.config.population_size)]
