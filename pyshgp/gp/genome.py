@@ -365,8 +365,10 @@ class GenomeArchive:
     def extend(self, archive: Union[Sequence[Genome], GenomeArchive]) -> GenomeArchive:
         if isinstance(archive, GenomeArchive):
             self.genomes.extend(archive.genomes)
+            return GenomeArchive(self.genomes)
         else:
             self.genomes.extend(archive)
+            return GenomeArchive(self.genomes)
 
     def random_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
         i = np.random.choice(self.size)
