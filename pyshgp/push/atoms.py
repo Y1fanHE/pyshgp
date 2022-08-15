@@ -19,6 +19,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Sequence, Tuple, Optional
 from itertools import chain, count
+from uuid import UUID
 
 from pyrsistent import PClass, field, CheckedPVector
 
@@ -176,21 +177,21 @@ class CodeBlock(Atom, CheckedPVector):
         return "(" + " ".join([el.pretty_str() for el in self]) + ")"
 
 
-class vCloser(Closer):
-    source = field(type=int, mandatory=False)
+class KCloser(Closer):
+    uuid = field(type=str, mandatory=False)
     time = field(type=int, mandatory=False)
 
 
-class vInput(Input):
-    source = field(type=int, mandatory=False)
+class KInput(Input):
+    uuid = field(type=str, mandatory=False)
     time = field(type=int, mandatory=False)
 
 
-class vInstructionMeta(InstructionMeta):
-    source = field(type=int, mandatory=False)
+class KInstructionMeta(InstructionMeta):
+    uuid = field(type=str, mandatory=False)
     time = field(type=int, mandatory=False)
 
 
-class vLiteral(Literal):
-    source = field(type=int, mandatory=False)
+class KLiteral(Literal):
+    uuid = field(type=str, mandatory=False)
     time = field(type=int, mandatory=False)

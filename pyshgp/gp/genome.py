@@ -23,8 +23,7 @@ from pyshgp.gp.evaluation import Evaluator
 from pyshgp.push.instruction_set import InstructionSet
 from pyshgp.push.program import ProgramSignature, Program
 from pyshgp.push.atoms import Atom, CodeBlock, Closer, Literal, InstructionMeta, Input
-from pyshgp.push.atoms import  vCloser, vInstructionMeta, vInput
-from pyshgp.push.type_library import PushTypeLibrary, infer_literal, infer_vliteral
+from pyshgp.push.type_library import infer_literal
 from pyshgp.tap import tap
 from pyshgp.utils import DiscreteProbDistrib
 
@@ -353,65 +352,3 @@ class GenomeSimplifier:
             if len(gn) == 1:
                 break
         return gn, errs
-
-
-class GenomeArchive:
-
-    def __init__(self, genomes: Sequence[Genome]):
-        self.genomes = genomes
-        self.size = len(genomes)
-        self.scores = np.zeros(self.size)
-
-    def extend(self, archive: Union[Sequence[Genome], GenomeArchive]) -> GenomeArchive:
-        if isinstance(archive, GenomeArchive):
-            self.genomes.extend(archive.genomes)
-            return GenomeArchive(self.genomes)
-        else:
-            self.genomes.extend(archive)
-            return GenomeArchive(self.genomes)
-
-    def random_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
-        i = np.random.choice(self.size)
-        genome = self.genomes[i]
-        return self.to_vgenome(genome, i, time, type_library)
-
-    def adaptive_genome(self, time: int, type_library: PushTypeLibrary = PushTypeLibrary()) -> Genome:
-        i = np.random.choice(self.size, p=self.probability)
-        genome = self.genomes[i]
-        return self.to_vgenome(genome, i, time, type_library)
-
-    def to_vgenome(self, genome: Genome, source: int, time: int, spawner: GeneSpawner) -> Genome:
-        vgenome = Genome()
-        for atom in genome:
-            if isinstance(atom, Closer):
-                vatom = vCloser(source=source, time=time)
-            elif isinstance(atom, Input):
-                vatom = vInput(
-                    input_index=np.random.randint(0, spawner.n_inputs),
-                    source=source,
-                    time=time
-                )
-            elif isinstance(atom, InstructionMeta):
-                vatom = vInstructionMeta(
-                    name=atom.name,
-                    code_blocks=atom.code_blocks,
-                    source=source,
-                    time=time
-                )
-            elif isinstance(atom, Literal):
-                vatom = infer_vliteral(
-                    val=atom.value,
-                    source=source,
-                    time=time,
-                    type_library=spawner.type_library
-                )
-            vgenome = vgenome.append(vatom)
-        return vgenome
-
-    @property
-    def probability(self) -> np.array:
-        s = self.scores.sum()
-        if s != 0:
-            return self.scores / s
-        else:
-            return np.full(self.size, 1/self.size)

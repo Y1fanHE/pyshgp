@@ -12,7 +12,7 @@ from pyshgp.push.program import ProgramSignature
 from pyshgp.tap import tap
 from pyshgp.utils import DiscreteProbDistrib
 from pyshgp.gp.evaluation import Evaluator
-from pyshgp.gp.genome import GeneSpawner, GenomeArchive, GenomeSimplifier
+from pyshgp.gp.genome import GeneSpawner, GenomeSimplifier
 from pyshgp.gp.individual import Individual
 from pyshgp.gp.population import Population
 from pyshgp.gp.selection import Selector, get_selector
@@ -293,73 +293,6 @@ class GeneticAlgorithm(SearchAlgorithm):
         )
 
 
-class ReplacementGeneticAlgorithm(SearchAlgorithm):
-    """Genetic algorithm with Adaptive replacement mutation to synthesize Push programs.
-
-    An initial Population of random Individuals is created. Each generation
-    begins by evaluating all Individuals in the population. Then the current
-    Population is replaced with children produced by selecting parents from
-    the Population and applying VariationOperators to them. Additionally, some
-    part of the parents is replaced by ReplacementMutation at a probability,
-    with the Genomes from a GenomeArchive.
-
-    """
-
-    def __init__(self,
-                 config: SearchConfiguration,
-                 archive: GenomeArchive,
-                 replacement_rate: float = 0.1,
-                 adaptation_rate: float = 0.5):
-        super().__init__(config)
-        self.rp = ReplacementMutation()
-        self.archive = archive
-        self.replacement_rate = replacement_rate
-        self.adaptation_rate = adaptation_rate
-
-    def _make_child(self) -> Individual:
-        op = self.config.get_variation_op()
-        selector = self.config.get_selector()
-        parent_individuals = selector.select(self.population, n=op.num_parents)
-        parent_genomes = [p.genome for p in parent_individuals]
-
-        if np.random.random() < self.replacement_rate: # replacement mutation
-            if np.random.random() < self.adaptation_rate: # select subprogram adaptively
-                vgenome = self.archive.adaptive_genome(time=self.generation, type_library=self.config.spawner)
-            else: # select subprogram randomly
-                vgenome = self.archive.random_genome(time=self.generation, type_library=self.config.spawner)
-            child_genome = self.rp.produce(parent_genomes, self.config.spawner,
-                                           replacement_genome=vgenome,
-                                           max_genome_size=self.config.max_genome_size)
-            individual = Individual(child_genome, self.config.signature)
-            individual.info = {"rid": vgenome[0].source, "pfit": parent_individuals[0].error_vector}
-        else: # umad
-            child_genome = op.produce(parent_genomes, self.config.spawner, max_genome_size=self.config.max_genome_size)
-            individual = Individual(child_genome, self.config.signature)
-        return individual
-
-    @tap
-    def step(self):
-        super().step()
-
-        if self.generation > 1:
-            for individual in self.population:
-                if individual.info:
-                    rid = individual.info.get("rid")
-                    pfit = individual.info.get("pfit")
-                    ifit = individual.error_vector
-                    if np.count_nonzero(pfit) > np.count_nonzero(ifit): # less unsolved case
-                        self.archive.scores[rid] += 1
-
-        if self.config.ext.get("replacement_generation"):
-            if self.generation > self.config.ext.get("replacement_generation"):
-                self.replacement_rate = 0.
-                self.adaptation_rate = 0.
-
-        self.population = Population(
-            [self._make_child() for _ in range(self.config.population_size)]
-        )
-
-
 class SimulatedAnnealing(SearchAlgorithm):
     """Algorithm to synthesize Push programs with Simulated Annealing.
 
@@ -429,7 +362,6 @@ def get_search_algo(name: str, **kwargs) -> SearchAlgorithm:
     name_to_cls = {
         "GA": GeneticAlgorithm,
         "SA": SimulatedAnnealing,
-        "RGA": ReplacementGeneticAlgorithm,
         # "ES": EvolutionaryStrategy,
     }
     _cls = name_to_cls.get(name, None)
