@@ -74,6 +74,20 @@ def _tan(x):
     return math.tan(x),
 
 
+def _p_exp(x):
+    try:
+        return math.exp(x),
+    except OverflowError:
+        return Token.revert
+
+
+def _p_log(x):
+    try:
+        return math.log(math.fabs(x)),
+    except ValueError:
+        return Token.revert
+
+
 def _to_int(x):
     return int(x),
 
@@ -231,6 +245,24 @@ def instructions(type_library: PushTypeLibrary):
         output_stacks=["float"],
         code_blocks=0,
         docstring="Pushes the tan of the top float."
+    ))
+
+    i.append(SimpleInstruction(
+        "float_exp",
+        _p_exp,
+        input_stacks=["float"],
+        output_stacks=["float"],
+        code_blocks=0,
+        docstring="Pushes the exp of the top float."
+    ))
+
+    i.append(SimpleInstruction(
+        "float_log",
+        _p_log,
+        input_stacks=["float"],
+        output_stacks=["float"],
+        code_blocks=0,
+        docstring="Pushes the log of the top float."
     ))
 
     # Type converting
