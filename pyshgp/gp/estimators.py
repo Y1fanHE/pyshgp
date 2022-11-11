@@ -131,7 +131,8 @@ class PushEstimator:
             max_genome_size=self.max_genome_size,
             simplification_steps=self.simplification_steps,
             parallelism=self.parallelism,
-            push_config=self.push_config
+            push_config=self.push_config,
+            **self.ext
         )
         self.search = sr.get_search_algo(self._search_name, config=search_config, **self.ext)
 

@@ -18,6 +18,8 @@ from pyshgp.gp.selection import Selector, get_selector
 from pyshgp.gp.variation import VariationOperator, get_variation_operator
 from pyshgp.utils import instantiate_using
 
+from pyshgp.push.atoms import Input, InstructionMeta, Literal, Closer
+
 
 class ParallelContext:
     """Holds the objects needed to coordinate parallelism."""
@@ -215,6 +217,21 @@ class SearchAlgorithm(ABC):
             self.population.evaluate(self.config.evaluator)
 
         best_this_gen = self.population.best()
+
+        """Code to generate data for creating STNs"""
+        row = []
+        row.append(str(self.generation))
+        row.append(str(self.generation*len(self.population)))
+        for gene in best_this_gen.genome:
+            row.append(str(gene.pretty_str()))
+        if self.config.max_genome_size and len(best_this_gen.genome) < self.config.max_genome_size:
+            row.extend([""] * (self.config.max_genome_size - len(best_this_gen.genome)))
+        row.append(str(best_this_gen.total_error))
+        for e in best_this_gen.error_vector:
+            row.append(str(e))
+        with open(self.config.ext.get("save"), "a") as savefile:
+            savefile.write(",".join(row)+"\n")
+
         if self.best_seen is None or best_this_gen.total_error < self.best_seen.total_error:
             self.best_seen = best_this_gen
             if self.best_seen.total_error <= self.config.error_threshold:
